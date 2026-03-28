@@ -9,6 +9,6 @@ namespace MES.Domain.Interfaces
 {
     public interface IWorkCentreRepository : IRepository<WorkCentre>
     {
-        Task<WorkCentre?> GetByCodeAsync(string code, CancellationToken ct = default);
+        Task<WorkCentre?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
     }
 }
