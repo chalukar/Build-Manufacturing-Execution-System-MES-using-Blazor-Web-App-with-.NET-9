@@ -10,7 +10,7 @@ namespace MES.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [AllowAnonymous]
     public class WorkOrdersController(IMediator mediator) : ControllerBase
     {
         [HttpGet]

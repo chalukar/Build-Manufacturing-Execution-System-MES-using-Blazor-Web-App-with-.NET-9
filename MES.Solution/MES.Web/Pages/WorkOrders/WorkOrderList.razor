@@ -1,0 +1,165 @@
+﻿@page "/workorders"
+@using MES.Application.DTOs
+@using MES.Domain.Enums
+@using MES.Web.Services
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Nav
+
+<PageTitle>Work Orders — MES</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Work Orders</h3>
+    <button class="btn btn-primary"
+            @onclick="@(() => Nav.NavigateTo("/workorders/create"))">
+        + New Work Order
+    </button>
+</div>
+
+<div class="mb-3">
+    <select class="form-select w-auto" @onchange="FilterChanged">
+        <option value="">All Statuses</option>
+        @foreach (var s in Enum.GetValues<WorkOrderStatus>())
+        {
+            <option value="@s">@s</option>
+        }
+    </select>
+</div>
+
+@if (_workOrders is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!_workOrders.Any())
+{
+    <p class="text-muted">No work orders found.</p>
+}
+else
+{
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>WO Number</th>
+                <th>Product</th>
+                <th>Work Centre</th>
+                <th>Status</th>
+                <th>Planned Qty</th>
+                <th>Produced</th>
+                <th>Efficiency</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var wo in _workOrders)
+            {
+                <tr>
+                    <td>
+                        <a href="/workorders/@wo.Id">@wo.WorkOrderNumber</a>
+                    </td>
+                    <td>
+                        @wo.ProductName
+                        <br />
+                        <small class="text-muted">@wo.ProductCode</small>
+                    </td>
+                    <td>@wo.WorkCentreName</td>
+                    <td>
+                        <span class="badge @GetStatusClass(wo.Status)">
+                            @wo.Status
+                        </span>
+                    </td>
+                    <td>@wo.PlannedQuantity.ToString("N0")</td>
+                    <td>@wo.ProducedQuantity.ToString("N0")</td>
+                    <td>
+                        <div class="progress" style="min-width:80px">
+                            <div class="progress-bar @GetProgressClass(wo.EfficiencyPercent)"
+                                 style="width:@(Math.Min(wo.EfficiencyPercent, 100))%">
+                                @wo.EfficiencyPercent.ToString("N1")%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        @if (wo.Status == WorkOrderStatus.Draft)
+                        {
+                            <button class="btn btn-sm btn-outline-success"
+                                    @onclick="@(() => ReleaseAsync(wo.Id))">
+                                Release
+                            </button>
+                        }
+                        @if (wo.Status == WorkOrderStatus.Released)
+                        {
+                            <button class="btn btn-sm btn-outline-primary"
+                                    @onclick="@(() => StartAsync(wo.Id))">
+                                Start
+                            </button>
+                        }
+                        @if (wo.Status == WorkOrderStatus.InProgress)
+                        {
+                            <button class="btn btn-sm btn-outline-warning"
+                                    @onclick="@(() => Nav.NavigateTo($"/workorders/{wo.Id}/production"))">
+                                Record
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary ms-1"
+                                    @onclick="@(() => CompleteAsync(wo.Id))">
+                                Complete
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<WorkOrderDto>? _workOrders;
+    private WorkOrderStatus? _currentFilter;
+
+    protected override async Task OnInitializedAsync()
+        => await LoadAsync();
+
+    private async Task LoadAsync()
+        => _workOrders = await WorkOrderService.GetAllAsync(_currentFilter);
+
+    private async Task FilterChanged(ChangeEventArgs e)
+    {
+        _currentFilter = Enum.TryParse<WorkOrderStatus>(
+            e.Value?.ToString(), out var s) ? s : null;
+        await LoadAsync();
+    }
+
+    private async Task ReleaseAsync(Guid id)
+    {
+        await WorkOrderService.ReleaseAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task StartAsync(Guid id)
+    {
+        await WorkOrderService.StartAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task CompleteAsync(Guid id)
+    {
+        await WorkOrderService.CompleteAsync(id);
+        await LoadAsync();
+    }
+
+    private static string GetStatusClass(WorkOrderStatus s) => s switch
+    {
+        WorkOrderStatus.Draft => "bg-secondary",
+        WorkOrderStatus.Released => "bg-info text-dark",
+        WorkOrderStatus.InProgress => "bg-primary",
+        WorkOrderStatus.Completed => "bg-success",
+        WorkOrderStatus.Cancelled => "bg-danger",
+        WorkOrderStatus.OnHold => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string GetProgressClass(decimal pct) => pct switch
+    {
+        >= 100 => "bg-success",
+        >= 75 => "bg-info",
+        >= 50 => "bg-warning",
+        _ => "bg-danger"
+    };
+}
