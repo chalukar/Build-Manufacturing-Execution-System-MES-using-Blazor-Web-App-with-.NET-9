@@ -18,9 +18,9 @@ namespace MES.Application.WorkOrders.Commands
         public async Task<Result<bool>> Handle(RecordProductionCommand request, CancellationToken cancellationToken)
         {
             var wo = await uow.WorkOrders.GetByIdAsync(request.Dto.WorkOrderId, cancellationToken)
-            ?? throw new NotFoundException("WorkOrder", request.Dto.WorkOrderId);
+                ?? throw new NotFoundException("WorkOrder", request.Dto.WorkOrderId);
 
-            wo.RecordProduction(request.Dto.GoodQuantity, request.Dto.ScrapQuantity);
+                wo.RecordProduction(request.Dto.GoodQuantity, request.Dto.ScrapQuantity);
 
             var entry = ProductionEntry.Create(
                 wo.Id,
