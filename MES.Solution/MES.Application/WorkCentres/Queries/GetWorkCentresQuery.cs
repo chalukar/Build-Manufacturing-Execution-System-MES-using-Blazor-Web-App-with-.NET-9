@@ -10,15 +10,18 @@ using System.Threading.Tasks;
 
 namespace MES.Application.WorkCentres.Queries
 {
-    public record GetWorkCentresQuery : IRequest<Result<IReadOnlyList<WorkCentreDto>>>;
+    public record GetWorkCentresQuery(bool ActivateOnly = true) : IRequest<Result<IReadOnlyList<WorkCentreDto>>>;
 
     public class GetWorkCentresQueryHandler(IUnitOfWork uow)
         : IRequestHandler<GetWorkCentresQuery, Result<IReadOnlyList<WorkCentreDto>>>
     {
         public async Task<Result<IReadOnlyList<WorkCentreDto>>> Handle(GetWorkCentresQuery request, CancellationToken cancellationToken)
         {
-            var workCentres = await uow.WorkCentres
-                .GetAllAsync(cancellationToken);
+            var workCentres = await uow.WorkCentres.GetAllAsync(cancellationToken);
+
+            var filtered = request.ActivateOnly
+                ? workCentres.Where(wc => wc.IsActive)
+                : workCentres;
 
             var dtos = workCentres
                 .Where(wc => wc.IsActive)

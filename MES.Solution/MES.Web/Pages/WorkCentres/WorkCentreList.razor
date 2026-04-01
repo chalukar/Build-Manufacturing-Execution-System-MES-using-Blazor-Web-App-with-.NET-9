@@ -1,0 +1,101 @@
+﻿@page "/workcentres"
+@inject WorkCentreService WorkCentreService
+@inject NavigationManager Nav
+
+<PageTitle>Work Centres — MES</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0">Work Centres</h3>
+    <button class="btn btn-primary"
+            @onclick="@(() => Nav.NavigateTo("/workcentres/create"))">
+        + New Work Centre
+    </button>
+</div>
+
+@if (_isLoading)
+{
+    <div class="text-center py-4">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Loading...</p>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">
+        @_error
+        <button class="btn btn-sm btn-outline-danger ms-2"
+                @onclick="LoadAsync">
+            Retry
+        </button>
+    </div>
+}
+else if (_workCentres.Count == 0)
+{
+    <div class="text-center py-5">
+        <p class="text-muted">No work centres found.</p>
+        <button class="btn btn-primary"
+                @onclick="@(() => Nav.NavigateTo("/workcentres/create"))">
+            Create First Work Centre
+        </button>
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Capacity / Shift</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var wc in _workCentres)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@wc.Code</td>
+                            <td>@wc.Name</td>
+                            <td>@wc.Department</td>
+                            <td>@wc.CapacityPerShift.ToString("N0")</td>
+                            <td>
+                                @if (wc.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<WorkCentreDto> _workCentres = [];
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+        => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        var (data, error) = await WorkCentreService.GetAllAsync(activeOnly: false);
+
+        _workCentres = data;
+        _error = error;
+        _isLoading = false;
+    }
+}

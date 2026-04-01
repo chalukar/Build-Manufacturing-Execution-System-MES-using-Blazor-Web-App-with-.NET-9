@@ -5,20 +5,19 @@ namespace MES.Web.Services
 {
     public class WorkCentreService(HttpClient http)
     {
-        public async Task<(List<WorkCentreDto> Data, string? Error)> GetAllAsync()
+        public async Task<(List<WorkCentreDto> Data, string? Error)> GetAllAsync(bool activeOnly = true)
         {
             try
             {
-                var response = await http.GetAsync("api/workcentres");
+                var response = await http.GetAsync($"api/workcentres?activeOnly={activeOnly}");
 
                 // Check status before trying to deserialize
                 if (!response.IsSuccessStatusCode)
                 {
-                    var body = await response.Content.ReadAsStringAsync();
+                    //var body = await response.Content.ReadAsStringAsync();
 
                     return ([], $"API returned {(int)response.StatusCode} " +
-                                $"{response.StatusCode}. " +
-                                $"Check [Authorize] on WorkCentresController.");
+                                $"{response.StatusCode}. ");
                 }
 
                 var contentType = response.Content.Headers.ContentType?.MediaType;
@@ -44,6 +43,29 @@ namespace MES.Web.Services
             catch (Exception ex)
             {
                 return ([], $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        public async Task<(Guid? Id, string? Error)> CreateAsync(
+        CreateWorkCentreDto dto)
+        {
+            try
+            {
+                var response = await http
+                    .PostAsJsonAsync("api/workcentres", dto);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var id = await response.Content.ReadFromJsonAsync<Guid>();
+                    return (id, null);
+                }
+
+                var error = await response.Content.ReadAsStringAsync();
+                return (null, $"Failed to create: {error}");
+            }
+            catch (Exception ex)
+            {
+                return (null, $"Unexpected error: {ex.Message}");
             }
         }
     }

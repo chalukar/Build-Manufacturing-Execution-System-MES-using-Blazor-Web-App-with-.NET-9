@@ -1,0 +1,171 @@
+@page "/workcentres/create"
+@inject WorkCentreService WorkCentreService
+@inject NavigationManager Nav
+
+<PageTitle>New Work Centre — MES</PageTitle>
+
+<div class="d-flex align-items-center mb-4">
+    <button class="btn btn-outline-secondary me-3"
+            @onclick="@(() => Nav.NavigateTo("/workcentres"))">
+        &larr; Back
+    </button>
+    <h3 class="mb-0">New Work Centre</h3>
+</div>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger alert-dismissible">
+        @_errorMessage
+        <button type="button" class="btn-close"
+                @onclick="@(() => _errorMessage = null)">
+        </button>
+    </div>
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Work Centre Details</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="_model" OnValidSubmit="HandleValidSubmit">
+                    <DataAnnotationsValidator />
+
+                    @* Code *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Code <span class="text-danger">*</span>
+                        </label>
+                        <InputText class="form-control"
+                                   @bind-Value="_model.Code"
+                                   placeholder="e.g. WC-001" />
+                        <ValidationMessage For="@(() => _model.Code)"
+                                           class="text-danger small" />
+                    </div>
+
+                    @* Name *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Name <span class="text-danger">*</span>
+                        </label>
+                        <InputText class="form-control"
+                                   @bind-Value="_model.Name"
+                                   placeholder="e.g. Assembly Line A" />
+                        <ValidationMessage For="@(() => _model.Name)"
+                                           class="text-danger small" />
+                    </div>
+
+                    @* Department *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Department <span class="text-danger">*</span>
+                        </label>
+                        <InputText class="form-control"
+                                   @bind-Value="_model.Department"
+                                   placeholder="e.g. Assembly" />
+                        <ValidationMessage For="@(() => _model.Department)"
+                                           class="text-danger small" />
+                    </div>
+
+                    @* Capacity Per Shift *@
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            Capacity Per Shift <span class="text-danger">*</span>
+                        </label>
+                        <InputNumber class="form-control"
+                                     @bind-Value="_model.CapacityPerShift"
+                                     placeholder="0" />
+                        <ValidationMessage For="@(() => _model.CapacityPerShift)"
+                                           class="text-danger small" />
+                    </div>
+
+                    @* Buttons *@
+                    <div class="d-flex gap-2">
+                        <button type="submit"
+                                class="btn btn-primary"
+                                disabled="@_isSubmitting">
+                            @if (_isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"
+                                      role="status"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>Save Work Centre</span>
+                            }
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                @onclick="@(() => Nav.NavigateTo("/workcentres"))"
+                                disabled="@_isSubmitting">
+                            Cancel
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreateWorkCentreModel _model = new();
+    private string? _errorMessage;
+    private bool _isSubmitting;
+
+    private async Task HandleValidSubmit()
+    {
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var dto = new CreateWorkCentreDto(
+                _model.Code.Trim(),
+                _model.Name.Trim(),
+                _model.Department.Trim(),
+                _model.CapacityPerShift
+            );
+
+            var (id, error) = await WorkCentreService.CreateAsync(dto);
+
+            if (id.HasValue)
+            {
+                Nav.NavigateTo("/workcentres");
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to create work centre. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class CreateWorkCentreModel
+    {
+        [Required(ErrorMessage = "Code is required.")]
+        [MaxLength(50, ErrorMessage = "Code cannot exceed 50 characters.")]
+        public string Code { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Name is required.")]
+        [MaxLength(200, ErrorMessage = "Name cannot exceed 200 characters.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Department is required.")]
+        [MaxLength(200, ErrorMessage = "Department cannot exceed 200 characters.")]
+        public string Department { get; set; } = string.Empty;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Capacity must be non-negative.")]
+        [Required(ErrorMessage = "Capacity per shift is required.")]
+        public decimal CapacityPerShift { get; set; }
+    }
+}

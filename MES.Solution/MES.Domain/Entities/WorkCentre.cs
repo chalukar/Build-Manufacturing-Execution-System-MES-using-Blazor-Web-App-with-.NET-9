@@ -16,7 +16,21 @@ namespace MES.Domain.Entities
         private WorkCentre() { }
 
         public static WorkCentre Create(string code, string name, string department, decimal capacity)
-            => new() { Code = code, Name = name, Department = department, CapacityPerShift = capacity, IsActive = true };
+            => new() 
+            { 
+                Code = code, 
+                Name = name, 
+                Department = department, 
+                CapacityPerShift = capacity, 
+                IsActive = true 
+            };
+
+        public void Update(string name, string department, decimal capacity)
+        {
+            Name = name.Trim();
+            Department = department.Trim();
+            CapacityPerShift = capacity;
+        }
 
         public void Deactivate() => IsActive = false;
         public void Activate() => IsActive = true;

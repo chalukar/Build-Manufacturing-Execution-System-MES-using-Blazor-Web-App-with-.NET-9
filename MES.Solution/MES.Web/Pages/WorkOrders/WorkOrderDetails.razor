@@ -1,0 +1,207 @@
+@page "/workorders/{Id:guid}"
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Nav
+
+<PageTitle>Work Order Details — MES</PageTitle>
+
+<div class="d-flex align-items-center mb-4">
+    <button class="btn btn-outline-secondary me-3"
+            @onclick="@(() => Nav.NavigateTo("/workorders"))">
+        &larr; Back
+    </button>
+    <h3 class="mb-0">Work Order Details</h3>
+</div>
+
+@if (_isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Loading...</p>
+    </div>
+}
+else if (_workOrder is null)
+{
+    <div class="alert alert-danger">
+        Work order not found or an error occurred while loading.
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">#@_workOrder.WorkOrderNumber</h5>
+                    <span class="badge @GetStatusClass(_workOrder.Status)">
+                        @_workOrder.Status
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted">Product</div>
+                        <div class="col-sm-8 fw-semibold">
+                            @_workOrder.ProductName <small class="text-muted">(@_workOrder.ProductCode)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted">Work Centre</div>
+                        <div class="col-sm-8">@_workOrder.WorkCentreName</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-4 text-muted">Planned Dates</div>
+                        <div class="col-sm-8">
+                            @_workOrder.PlannedStartDate.ToShortDateString() &mdash; @_workOrder.PlannedEndDate.ToShortDateString()
+                        </div>
+                    </div>
+
+                    @if (_workOrder.ActualStartDate.HasValue)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-sm-4 text-muted">Actual Dates</div>
+                            <div class="col-sm-8">
+                                @_workOrder.ActualStartDate.Value.ToShortDateString() &mdash; 
+                                @(_workOrder.ActualEndDate?.ToShortDateString() ?? "Ongoing")
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_workOrder.Notes))
+                    {
+                        <div class="row mb-3">
+                            <div class="col-sm-4 text-muted">Notes</div>
+                            <div class="col-sm-8">@_workOrder.Notes</div>
+                        </div>
+                    }
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Production Progress</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-4">
+                        <div class="col-4">
+                            <div class="text-muted small">Planned</div>
+                            <div class="fs-4">@_workOrder.PlannedQuantity.ToString("N0")</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Produced</div>
+                            <div class="fs-4 text-success fw-semibold">@_workOrder.ProducedQuantity.ToString("N0")</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Scrapped</div>
+                            <div class="fs-4 text-danger">@_workOrder.ScrappedQuantity.ToString("N0")</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2 d-flex justify-content-between">
+                        <span class="small text-muted">Overall Completion</span>
+                        <span class="small fw-semibold">@Math.Min(_workOrder.EfficiencyPercent, 100).ToString("N1")%</span>
+                    </div>
+                    <div class="progress" style="height: 12px;">
+                        <div class="progress-bar @GetProgressClass(_workOrder.EfficiencyPercent)" 
+                             style="width: @(Math.Min(_workOrder.EfficiencyPercent, 100))%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    @if (_workOrder.Status == WorkOrderStatus.Draft)
+                    {
+                        <button class="btn btn-success" @onclick="ReleaseAsync">
+                            Release Work Order
+                        </button>
+                    }
+                    else if (_workOrder.Status == WorkOrderStatus.Released)
+                    {
+                        <button class="btn btn-primary" @onclick="StartAsync">
+                            Start Production
+                        </button>
+                    }
+                    else if (_workOrder.Status == WorkOrderStatus.InProgress)
+                    {
+                        <button class="btn btn-warning" 
+                                @onclick="@(() => Nav.NavigateTo($"/workorders/{_workOrder.Id}/production"))">
+                            Record Production
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="CompleteAsync">
+                            Complete Work Order
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center pt-2">
+                            <em>No actions available</em>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private WorkOrderDto? _workOrder;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _workOrder = await WorkOrderService.GetByIdAsync(Id);
+        _isLoading = false;
+    }
+
+    private async Task ReleaseAsync()
+    {
+        await WorkOrderService.ReleaseAsync(Id);
+        await LoadAsync();
+    }
+
+    private async Task StartAsync()
+    {
+        await WorkOrderService.StartAsync(Id);
+        await LoadAsync();
+    }
+
+    private async Task CompleteAsync()
+    {
+        await WorkOrderService.CompleteAsync(Id);
+        await LoadAsync();
+    }
+
+    private static string GetStatusClass(WorkOrderStatus s) => s switch
+    {
+        WorkOrderStatus.Draft => "bg-secondary",
+        WorkOrderStatus.Released => "bg-info text-dark",
+        WorkOrderStatus.InProgress => "bg-primary",
+        WorkOrderStatus.Completed => "bg-success",
+        WorkOrderStatus.Cancelled => "bg-danger",
+        WorkOrderStatus.OnHold => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string GetProgressClass(decimal pct) => pct switch
+    {
+        >= 100 => "bg-success",
+        >= 75 => "bg-info",
+        >= 50 => "bg-warning",
+        _ => "bg-danger"
+    };
+}
